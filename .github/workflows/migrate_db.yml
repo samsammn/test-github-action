@@ -1,0 +1,42 @@
+name: Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      db_migrate:
+        description: "Database Migration (0/1)"
+        required: false
+        default: "0"
+
+jobs:
+  migrate:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 5
+    steps:
+      - name: Preparation
+        uses: actions/checkout@master
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.18.3
+      - name: Install golang-migrate
+        if: ${{ github.event.inputs.db_migrate == '1' }}
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.12.2/migrate.linux-amd64.tar.gz | tar xvz
+          sudo mv migrate.linux-amd64 /usr/bin/migrate
+          which migrate
+      - name: Set up SSH key
+        if: ${{ github.event.inputs.db_migrate == '1' }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -t rsa ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      - name: Start SSH tunnel
+        if: ${{ github.event.inputs.db_migrate == '1' }}
+        run: |
+          ssh -i ~/.ssh/id_rsa -fN -L 3306:localhost:3306 ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}
+      - name: Run migrations
+        if: ${{ github.event.inputs.db_migrate == '1' }}
+        run: |
+          migrate -path=database/migrations -database="mysql://${{ secrets.DB_USER }}:${{ secrets.DB_PASSWORD }}@tcp(127.0.0.1:3306)/${{ secrets.DB_NAME }}" up
