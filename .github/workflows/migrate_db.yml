@@ -24,6 +24,10 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 5
     steps:
+      - name: Preparation
+        uses: actions/checkout@master
+        with:
+          go-version: 1.18.3
       - name: Install golang-migrate
         run: |
           curl -L https://github.com/golang-migrate/migrate/releases/download/v4.12.2/migrate.linux-amd64.tar.gz | tar xvz
